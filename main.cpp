@@ -1,6 +1,5 @@
 #include <cstdlib>
 #include <ctime>
-#include <new>
 #include <stdio.h>
 #include <iostream>
 #include <string>
@@ -10,7 +9,9 @@
 #include <ios>
 #include <fstream>
 
-static constexpr char _alphabet[] = "@abcdefghijklmnopqrstuvwxyz";
+static constexpr char k_alphabet[] = "@abcdefghijklmnopqrstuvwxyz";
+static constexpr char k_end_mark[] = "@";
+static constexpr char k_start_mark[] = "#";
 class AlphabetMap
 {
     std::map<char, int> _map;
@@ -19,9 +20,9 @@ class AlphabetMap
     int &operator[](char key) {
         return _map[key];
     }
-    AlphabetMap () {
+    AlphabetMap() {
         _map = std::map<char, int>();
-        for(const auto &c : _alphabet) {
+        for(const auto &c : k_alphabet) {
             if(c != 0) {
                 _map[c] = 1;
             }
@@ -68,8 +69,6 @@ class Parser
 
 class Model
 {
-    static constexpr char _start_mark[] = "#";
-    static constexpr char _end_mark[] = "@";
     std::map<std::string, AlphabetMap> _chain;
     std::map<std::string, AlphabetMap> _weights;
     std::vector<std::string> _corpus;
@@ -77,17 +76,17 @@ class Model
     int _gain;
 
    public:
-    Model (int order, int gain, const std::vector<std::string> &corpus) : _corpus(corpus), _order(order), _gain(gain) {
+    Model(int order, int gain, const std::vector<std::string> &corpus) : _corpus(corpus), _order(order), _gain(gain) {
         _chain = std::map<std::string, AlphabetMap>();
         _weights = std::map<std::string, AlphabetMap>();
         generate_model();
     }
 
     void generate_model () {
-        _chain[_start_mark] = AlphabetMap();
+        _chain[k_start_mark] = AlphabetMap();
         for(const auto &n : _corpus) {
-            std::string tmp_str = n + _end_mark;
-            _chain[_start_mark][tmp_str[0]] += _gain;
+            std::string tmp_str = n + k_end_mark;
+            _chain[k_start_mark][tmp_str[0]] += _gain;
             //std::cout << "tmp_str: " << tmp_str << "len: " << tmp_str.length() - _order << std::endl;
             for(int i = 0; i < static_cast<int>(tmp_str.length()) - _order; ++i) {
                 auto tmp = tmp_str.substr(i, _order);
@@ -100,22 +99,14 @@ class Model
         }
     }
 
-    void generate_weights () {
-        for(const auto &n : _chain) {
-            if(_weights.find(n.first) == _weights.end()) {
-                _weights[n.first] = AlphabetMap();
-            }
-        }
-    }
-
     char get_letter (std::string context) {
         char ret = 0;
         if(_chain.find(context) != _chain.end()) {
             auto tmp = _chain[context].get_vector();
             auto rnd = rand() % tmp.back();
-            for(int i = 0; i < tmp.size(); ++i) {
+            for(int i = 0; i < static_cast<int>(tmp.size()); ++i) {
                 if(rnd <= tmp[i]) {
-                    ret = _alphabet[i];
+                    ret = k_alphabet[i];
                     break;
                 }
             }
@@ -140,12 +131,10 @@ class Generator
     int _gain;
 
    public:
-    Generator (int order, int gain, std::vector<std::string> corpus) : _order(order), _gain(gain) {
+    Generator(int order, int gain, std::vector<std::string> corpus) : _order(order), _gain(gain) {
         _models = std::vector<Model>();
         for(int i = _order; i > 0; --i) {
             auto model = Model(i, _gain, corpus);
-            //std::cout << "============== " << i << std::endl << std::endl;
-            //model.print_chain();
             _models.push_back(model);
         }
     }
@@ -163,15 +152,12 @@ class Generator
 
     std::string generate_word () {
         auto ret = std::string("");
-        // _models[0].print_chain();
-        auto letter = _models[0].get_letter("#");
-        // std::cout << "letter: " << letter << std::endl;
+        auto letter = _models[0].get_letter(k_start_mark);
         ret += letter;
         while(true) {
-            auto tmp = ret.length() <= _order ? ret : ret.substr(ret.length() - _order, _order);
-            //std::cout << "tmp: " << tmp << std::endl;
+            auto tmp = static_cast<int>(ret.length()) <= _order ? ret : ret.substr(ret.length() - _order, _order);
             letter = generate_letter(tmp);
-            if(letter == '@' || letter == 0) {
+            if(letter == k_end_mark[0] || letter == 0) {
                 break;
             }
             ret += letter;
@@ -181,6 +167,10 @@ class Generator
 };
 
 int main (int argc, char *argv[]) {
+    constexpr int k_min_word_len = 6;
+    constexpr int k_max_word_len = 10;
+    constexpr int k_num_of_words = 10;
+
     srand(time(NULL));
     auto corpus = std::vector<std::string>();
     if(argc == 4) {
@@ -189,9 +179,9 @@ int main (int argc, char *argv[]) {
         int gain = std::stoi(std::string(argv[2]));
         corpus = Parser::parse_file(path);
         auto gen = Generator(order, gain, corpus);
-        for(int i = 0; i < 10;) {
+        for(int i = 0; i < k_num_of_words;) {
             auto tmp = gen.generate_word();
-            if(tmp.length() >= 6 && tmp.length() <= 10) {
+            if(tmp.length() >= k_min_word_len && tmp.length() <= k_max_word_len) {
                 std::cout << tmp << std::endl;
                 ++i;
             }
@@ -199,6 +189,4 @@ int main (int argc, char *argv[]) {
     } else {
         std::cout << "Wrong arguments!" << std::endl;
     }
-    // auto model = Model(1, 5, corpus);
-    //model.print_chain();
 }
