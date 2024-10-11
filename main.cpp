@@ -4,7 +4,9 @@
 #include <cstdlib>
 #include <ctime>
 #include <stdio.h>
+#include <exception>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include "map"
@@ -13,6 +15,8 @@
 #include <fstream>
 #include <stdint.h>
 
+static constexpr char k_animals_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/animals";
+static constexpr char k_adjectives_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/adjectives";
 static constexpr char k_alphabet[] = "@abcdefghijklmnopqrstuvwxyz";
 static constexpr char k_end_mark[] = "@";
 static constexpr char k_start_mark[] = "#";
@@ -59,7 +63,7 @@ class AlphabetMap
     uint32_t &operator[](char key) {
         return _map[key];
     }
-    AlphabetMap() {
+    AlphabetMap () {
         _map = std::map<char, uint32_t>();
         for(const auto &c : k_alphabet) {
             if(c != 0) {
@@ -108,26 +112,30 @@ class Parser
 {
    public:
     static std::vector<std::string> parse_file (const std::string &path) {
-        std::cout << "File path: " << path << std::endl;
         auto ret = std::vector<std::string>();
         std::ifstream file_stream(path, std::ios_base::in);
-
-        for(std::string line; getline(file_stream, line);) {
-            ret.push_back(line);
+        if(file_stream) {
+            for(std::string line; getline(file_stream, line);) {
+                ret.push_back(line);
+            }
+        } else {
+            std::cout << "Can not open file" << path << std::endl;
         }
         return ret;
     }
 
     static std::vector<uint8_t> load_model (const std::string &path) {
-        std::cout << "File path: " << path << std::endl;
-        //auto ret = std::vector<uint8_t>();
         std::ifstream file_stream(path, std::ios::binary);
-        std::vector<uint8_t> ret((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
+        auto ret = std::vector<uint8_t>();
+        if(file_stream) {
+            ret = std::vector<uint8_t>((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
+        } else {
+            std::cout << "Can not open file" << path << std::endl;
+        }
         return ret;
     }
 
-    static void save_model (const std::string &path, std::vector<uint8_t> &vec) {
-        std::cout << "File path: " << path << std::endl;
+    static void save_model (const std::string &path, const std::vector<uint8_t> &vec) {
         auto ret = std::vector<uint8_t>();
         std::ofstream file_stream(path, std::ios_base::binary | std::ios::app);
         if(file_stream) {
@@ -152,15 +160,8 @@ class Model
     int _gain;
 
    public:
-    Model(int order, int gain) : _order(order), _gain(gain) {
+    Model (int order, int gain) : _order(order), _gain(gain) {
         _chain = std::map<std::string, AlphabetMap>();
-        auto m1 = AlphabetMap();
-        auto m2 = AlphabetMap();
-        m1['z'] = 55;
-        m2['z'] = 77;
-        _chain["abcd"] = m1;
-        _chain["efgh"] = m2;
-        //generate_model(corpus);
     }
 
     void generate_model (const std::vector<std::string> &corpus) {
@@ -168,10 +169,8 @@ class Model
         for(const auto &n : corpus) {
             std::string tmp_str = n + k_end_mark;
             _chain[k_start_mark][tmp_str[0]] += _gain;
-            //std::cout << "tmp_str: " << tmp_str << "len: " << tmp_str.length() - _order << std::endl;
             for(int i = 0; i < static_cast<int>(tmp_str.length()) - _order; ++i) {
                 auto tmp = tmp_str.substr(i, _order);
-                //std::cout << "tmp: " << tmp << std::endl;
                 if(_chain.find(tmp) == _chain.end()) {
                     _chain[tmp] = AlphabetMap();
                 }
@@ -191,7 +190,6 @@ class Model
                     break;
                 }
             }
-            //std::cout << "ret: " << ret << std::endl;
         }
         return ret;
     }
@@ -239,24 +237,30 @@ class Generator
     int _gain;
 
    public:
-    Generator(int order, int gain, std::string path, std::vector<std::string> corpus) :
+    Generator (int order, int gain, std::string path, std::vector<std::string> corpus) :
         _path(path),
         _order(order),
         _gain(gain) {
         _models = std::vector<Model>();
-        generate_models(corpus);
+        if(!corpus.empty()) {
+            generate_models(corpus);
+        } else {
+            throw std::invalid_argument("reveived empty corpus");
+        }
     }
 
     void generate_models (std::vector<std::string> &corpus) {
         for(int i = _order; i > 0; --i) {
+            std::string path = _path + "/" + "model" + std::to_string(i) + ".bin";
             auto model = Model(i, _gain);
-            auto tmp = Parser::load_model(_path + "/" + "model" + std::to_string(i) + ".bin");
+            auto tmp = Parser::load_model(path);
             if(!tmp.empty()) {
-                std::cout << "load\n";
+                std::cout << "Load: " << path << std::endl;
                 model.deserialize(tmp);
             } else {
-                std::cout << "gen\n";
+                std::cout << "Save: " << path << std::endl;
                 model.generate_model(corpus);
+                Parser::save_model(path, model.serialize());
             }
             _models.push_back(model);
         }
@@ -288,6 +292,15 @@ class Generator
         return ret;
     }
 
+    std::string generate_word (int min, int max) {
+        while(true) {
+            auto tmp = generate_word();
+            if(tmp.length() >= min && tmp.length() <= max) {
+                return tmp;
+            }
+        }
+    }
+
     void print_models () {
         for(auto &n : _models) {
             n.print_chain();
@@ -297,51 +310,35 @@ class Generator
 };
 
 int main (int argc, char *argv[]) {
-    auto corpus = std::vector<std::string>();
-    auto model = Model(1, 2);
-    auto ser = model.serialize();
-    model.print_chain();
-    Parser::save_model("/home/nikitapichugin/Documents/Projects/markov_word_gen/res/model1.bin", ser);
+    constexpr int k_min_word_len = 6;
+    constexpr int k_max_word_len = 12;
+    constexpr int k_num_of_words = 10;
 
-    auto gen = Generator(1, 1, "/home/nikitapichugin/Documents/Projects/markov_word_gen/res", corpus);
-    gen.print_models();
-    // auto restore = Parser::load_model("/home/nikitapichugin/Documents/Projects/markov_word_gen/res/model0.bin");
-    // model.deserialize(ser);
-    // model.print_chain();
-    // auto map1 = AlphabetMap();
-    // auto map2 = AlphabetMap();
-    // int cnt = 5;
-    // for(auto n : k_alphabet) {
-    //     if(n != 0) {
-    //         map1[n] = cnt += 5;
-    //     }
-    // }
-    // auto ser = map1.serialize();
-    // map1.print_map();
-    // std::cout << std::endl;
-    // map2.deserialize(ser);
-    // map2.print_map();
+    srand(time(NULL));
+    if(argc == 3) {
+        int order = std::stoi(std::string(argv[1]));
+        int gain = std::stoi(std::string(argv[2]));
+        try {
+            auto adj_gen = Generator(order,
+                                     gain,
+                                     k_adjectives_path,
+                                     Parser::parse_file(std::string(k_adjectives_path) + "/corpus.txt"));
+            auto anm_gen = Generator(order,
+                                     gain,
+                                     k_animals_path,
+                                     Parser::parse_file(std::string(k_animals_path) + "/corpus.txt"));
+            for(int i = 0; i < k_num_of_words; ++i) {
+                auto adj_word = adj_gen.generate_word(k_min_word_len, k_max_word_len);
+                auto anm_word = anm_gen.generate_word(k_min_word_len, k_max_word_len);
+                std::cout << adj_word << " " << anm_word << std::endl;
+            }
+        } catch(const std::invalid_argument &e) {
+            std::cout << e.what() << std::endl;
+        } catch(const std::exception &e) {
+            std::cout << e.what() << std::endl;
+        }
 
-    // constexpr int k_min_word_len = 6;
-    // constexpr int k_max_word_len = 10;
-    // constexpr int k_num_of_words = 10;
-
-    // srand(time(NULL));
-    // auto corpus = std::vector<std::string>();
-    // if(argc == 4) {
-    //     char *path = argv[3];
-    //     int order = std::stoi(std::string(argv[1]));
-    //     int gain = std::stoi(std::string(argv[2]));
-    //     corpus = Parser::parse_file(path);
-    //     auto gen = Generator(order, gain, corpus);
-    //     for(int i = 0; i < k_num_of_words;) {
-    //         auto tmp = gen.generate_word();
-    //         if(tmp.length() >= k_min_word_len && tmp.length() <= k_max_word_len) {
-    //             std::cout << tmp << std::endl;
-    //             ++i;
-    //         }
-    //     }
-    // } else {
-    //     std::cout << "Wrong arguments!" << std::endl;
-    // }
+    } else {
+        std::cout << "Wrong arguments!" << std::endl;
+    }
 }
