@@ -48,7 +48,7 @@ class McwgBase
         }
     }
 
-    std::string pull_string (const std::vector<uint8_t> &vec, int pos, int len) {
+    std::string pull_string (const std::vector<uint8_t> &vec, const int pos, const int len) {
         auto ret = std::string();
         for(int i = pos; i < pos + len; ++i) {
             ret += vec[i];
@@ -70,7 +70,7 @@ class AlphabetMap : McwgBase
     std::map<char, uint32_t> _map;
 
    public:
-    uint32_t &operator[](char key) {
+    uint32_t &operator[](const char key) {
         return _map[key];
     }
     AlphabetMap () {
@@ -98,7 +98,7 @@ class AlphabetMap : McwgBase
         }
     }
 
-    void deserialize (std::vector<uint8_t> vec, int pos, int len) {
+    void deserialize (const std::vector<uint8_t> &vec, int pos, int len) {
         assert(vec.size() != 0 && "vec must contain at least one element");
         int letter_cnt = 0;
         for(int i = pos; i < pos + len; i += 4) {
@@ -126,7 +126,7 @@ class Model : McwgBase
     int _gain;
 
    public:
-    Model (int order, int gain) : _order(order), _gain(gain) {
+    Model (const int order, const int gain) : _order(order), _gain(gain) {
         _chain = std::map<std::string, AlphabetMap>();
     }
 
@@ -199,7 +199,7 @@ class Generator : McwgBase
     int _order;
 
    public:
-    Generator (int order, const std::vector<Model> &models) : _models(models), _order(order) {
+    Generator (const int order, const std::vector<Model> &models) : _models(models), _order(order) {
     }
 
     char generate_letter (const std::string &context) {
