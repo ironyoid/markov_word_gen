@@ -17,7 +17,7 @@
 
 static constexpr char k_animals_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/animals";
 static constexpr char k_adjectives_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/adjectives";
-//static constexpr char k_other_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/other";
+static constexpr char k_other_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/other";
 static constexpr char k_alphabet[] = "@abcdefghijklmnopqrstuvwxyz";
 static constexpr char k_end_mark[] = "@";
 static constexpr char k_start_mark[] = "#";
@@ -55,7 +55,7 @@ namespace HelperFunctions {
         return ret;
     }
 
-    std::string start (const int order) {
+    std::string gen_start_seq (const int order) {
         auto ret = std::string("");
         for(int i = 0; i < order; ++i) {
             ret += k_start_mark;
@@ -174,10 +174,8 @@ class Model
     }
 
     void generate_model (const std::vector<std::string> &corpus) {
-        //_chain[start()] = AlphabetMap();
         for(const auto &n : corpus) {
-            std::string tmp_str = HelperFunctions::start(_order) + n + k_end_mark;
-            //_chain[start()][tmp_str[0]] += _gain;
+            std::string tmp_str = HelperFunctions::gen_start_seq(_order) + n + k_end_mark;
             for(int i = 0; i < static_cast<int>(tmp_str.length()) - _order; ++i) {
                 auto tmp = tmp_str.substr(i, _order);
                 if(_chain.find(tmp) == _chain.end()) {
@@ -290,7 +288,7 @@ class Generator
     }
 
     std::string generate_word () {
-        auto ret = HelperFunctions::start(_order);
+        auto ret = HelperFunctions::gen_start_seq(_order);
         auto letter = generate_letter(ret);
         while(k_end_mark[0] != letter && 0 != letter) {
             if(0 != letter) {
