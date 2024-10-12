@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <format>
 
 class McwgBase
 {
@@ -93,10 +94,12 @@ class AlphabetMap : McwgBase
         return ret;
     }
 
-    void print_map () {
-        for(const auto &n : _map) {
-            std::cout << "{" << n.first << ": " << n.second << "} ";
+    std::string get_printable () const {
+        auto ret = std::string();
+        for(const auto &[key, val] : _map) {
+            ret += std::format("{}: {} ", key, val);
         }
+        return ret;
     }
 
     void deserialize (const std::vector<uint8_t> &vec, int pos, int len) {
@@ -122,13 +125,11 @@ class AlphabetMap : McwgBase
 class Model : McwgBase
 {
     std::map<std::string, AlphabetMap> _chain;
-
     int _order;
     int _gain;
 
    public:
-    Model (const int order, const int gain) : _order(order), _gain(gain) {
-        _chain = std::map<std::string, AlphabetMap>();
+    Model (const int order, const int gain) : _chain(), _order(order), _gain(gain) {
     }
 
     void generate_model (const std::vector<std::string> &corpus) {
@@ -159,12 +160,12 @@ class Model : McwgBase
         return ret;
     }
 
-    void print_chain () {
-        for(auto &n : _chain) {
-            std::cout << n.first << ": [";
-            n.second.print_map();
-            std::cout << "]\n";
+    std::string get_printable () const {
+        auto ret = std::string();
+        for(const auto &[key, val] : _chain) {
+            ret += std::format("{}: [{}]\n", key, val.get_printable());
         }
+        return ret;
     }
 
     std::vector<uint8_t> serialize () {
@@ -238,11 +239,12 @@ class Generator : McwgBase
         }
     }
 
-    void print_models () {
-        for(auto &n : _models) {
-            n.print_chain();
-            std::cout << std::endl;
+    std::string get_printable () const {
+        auto ret = std::string();
+        for(const auto &n : _models) {
+            ret += std::format("{}\n", n.get_printable());
         }
+        return ret;
     }
 };
 
