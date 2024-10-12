@@ -7,50 +7,6 @@ const std::filesystem::path k_animals_path = "../res/animals";
 const std::filesystem::path k_adjectives_path = "../res/adjectives";
 const std::filesystem::path k_corpus_name = "corpus.txt";
 
-class Parser
-{
-   public:
-    static std::optional<std::vector<std::string>> parse_file (const std::filesystem::path &path) {
-        auto ret = std::optional<std::vector<std::string>>();
-        auto str = std::vector<std::string>();
-        std::ifstream file_stream(path, std::ios_base::in);
-        if(file_stream) {
-            for(std::string line; getline(file_stream, line);) {
-                str.push_back(line);
-            }
-            ret = str;
-        }
-        return ret;
-    }
-
-    static std::optional<std::vector<uint8_t>> load_model (const std::filesystem::path &path) {
-        std::ifstream file_stream(path, std::ios::binary);
-        auto vec = std::vector<uint8_t>();
-        auto ret = std::optional<std::vector<uint8_t>>();
-        if(file_stream) {
-            vec = std::vector<uint8_t>((std::istreambuf_iterator<char>(file_stream)), std::istreambuf_iterator<char>());
-            ret = vec;
-        }
-        return ret;
-    }
-
-    static bool save_model (const std::filesystem::path &path, const std::vector<uint8_t> &vec) {
-        std::ofstream file_stream(path, std::ios_base::binary | std::ios::app);
-        bool ret = false;
-        if(file_stream) {
-            file_stream.write((char *) &vec[0], vec.size() * sizeof(uint8_t));
-            ret = true;
-        }
-        return ret;
-    }
-
-    static void print_corpus (const std::vector<std::string> &corpus) {
-        for(auto const &n : corpus) {
-            std::cout << n << std::endl;
-        }
-    }
-};
-
 std::vector<Model> generate_models (const int order,
                                     const int gain,
                                     const std::filesystem::path &path,
