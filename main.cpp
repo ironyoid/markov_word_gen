@@ -3,7 +3,6 @@
 
 static constexpr char k_animals_path[] = "../res/animals";
 static constexpr char k_adjectives_path[] = "../res/adjectives";
-static constexpr char k_other_path[] = "../res/other";
 
 class Parser
 {
