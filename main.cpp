@@ -17,7 +17,7 @@
 
 static constexpr char k_animals_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/animals";
 static constexpr char k_adjectives_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/adjectives";
-static constexpr char k_other_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/other";
+//static constexpr char k_other_path[] = "/Users/weedcuper/Documents/Projects/markov_name_gen/res/other";
 static constexpr char k_alphabet[] = "@abcdefghijklmnopqrstuvwxyz";
 static constexpr char k_end_mark[] = "@";
 static constexpr char k_start_mark[] = "#";
@@ -325,21 +325,27 @@ int main (int argc, char *argv[]) {
     srand(time(NULL));
 
     if(argc == 3) {
-        auto anm = Generator(3, 200, k_animals_path, Parser::parse_file(std::string(k_animals_path) + "/corpus.txt"));
-        auto adj
-            = Generator(3, 500, k_adjectives_path, Parser::parse_file(std::string(k_adjectives_path) + "/corpus.txt"));
-        //gen.print_models();
-        for(int i = 0; i < k_num_of_words; ++i) {
-            std::cout << adj.generate_word(k_min_word_len, k_max_word_len) << " "
-                      << anm.generate_word(k_min_word_len, k_max_word_len) << std::endl;
+        int order = std::stoi(std::string(argv[1]));
+        int gain = std::stoi(std::string(argv[2]));
+        try {
+            auto adj_gen = Generator(order,
+                                     gain,
+                                     k_adjectives_path,
+                                     Parser::parse_file(std::string(k_adjectives_path) + "/corpus.txt"));
+            auto anm_gen = Generator(order,
+                                     gain,
+                                     k_animals_path,
+                                     Parser::parse_file(std::string(k_animals_path) + "/corpus.txt"));
+            for(int i = 0; i < k_num_of_words; ++i) {
+                auto adj_word = adj_gen.generate_word(k_min_word_len, k_max_word_len);
+                auto anm_word = anm_gen.generate_word(k_min_word_len, k_max_word_len);
+                std::cout << adj_word << " " << anm_word << std::endl;
+            }
+        } catch(const std::invalid_argument &e) {
+            std::cout << e.what() << std::endl;
+        } catch(const std::exception &e) {
+            std::cout << e.what() << std::endl;
         }
-        // int order = std::stoi(std::string(argv[1]));
-        // int gain = std::stoi(std::string(argv[2]));
-        // auto adj_gen
-        //     = Generator(order, gain, k_other_path, Parser::parse_file(std::string(k_other_path) + "/corpus.txt"));
-        // //adj_gen.print_models();
-        // std::cout << adj_gen.generate_word(k_min_word_len, k_max_word_len) << std::endl;
-
     } else {
         std::cout << "Wrong arguments!" << std::endl;
     }
