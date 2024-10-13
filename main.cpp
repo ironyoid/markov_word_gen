@@ -16,13 +16,16 @@ std::vector<Model> generate_models (const int order,
         auto res_path = path / std::format("model{}.bin", i);
         auto model = Model(i, gain);
         auto tmp = Parser::load_model(res_path);
-        if(!tmp) {
+        if(tmp) {
             std::cout << "Load: " << res_path << std::endl;
             model.deserialize(tmp.value());
         } else {
-            std::cout << "Save: " << res_path << std::endl;
             model.generate_model(corpus);
-            Parser::save_model(res_path, model.serialize());
+            if(Parser::save_model(res_path, model.serialize())) {
+                std::cout << "Save: " << res_path << std::endl;
+            } else {
+                std::cout << "Failed to save a model: " << res_path << std::endl;
+            }
         }
         ret.push_back(model);
     }
@@ -47,7 +50,6 @@ int main (int argc, char *argv[]) {
                     auto anm_models = generate_models(order, gain, k_animals_path, corpus.value());
                     auto adj_gen = Generator(order, adj_models);
                     auto anm_gen = Generator(order, anm_models);
-                    std::cout << adj_gen.get_printable();
                     for(int i = 0; i < k_num_of_words; ++i) {
                         auto adj_word = adj_gen.generate_word(k_min_word_len, k_max_word_len);
                         auto anm_word = anm_gen.generate_word(k_min_word_len, k_max_word_len);

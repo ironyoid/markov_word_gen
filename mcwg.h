@@ -13,12 +13,8 @@
 #include <vector>
 #include <format>
 
-class McwgBase
-{
-   public:
-    McwgBase () = default;
+namespace {
 
-   protected:
     static constexpr char k_alphabet[] = "@abcdefghijklmnopqrstuvwxyz";
     static constexpr char k_end_mark[] = "@";
     static constexpr char k_start_mark[] = "#";
@@ -30,7 +26,8 @@ class McwgBase
     }
 
     uint32_t pull_int (const std::vector<uint8_t> &vec, uint32_t pos) {
-        assert(pos <= vec.size() - sizeof(uint32_t) && "position must be less than vec size");
+        assert(vec.size() > 3 && "vec must contain at least four elements");
+        assert(pos <= vec.size() - sizeof(uint32_t) && "position must be less than a vec size");
         uint32_t ret = 0;
         ret |= vec[pos++];
         ret |= vec[pos++] << 8;
@@ -40,6 +37,7 @@ class McwgBase
     }
 
     void push_string (std::vector<uint8_t> &vec, const std::string &str) {
+        assert(str.size() != 0 && "str must not be empty");
         push_int(vec, static_cast<uint32_t>(str.length()));
         for(const auto n : str) {
             vec.push_back(n);
@@ -47,6 +45,8 @@ class McwgBase
     }
 
     std::string pull_string (const std::vector<uint8_t> &vec, const int pos, const int len) {
+        assert(vec.size() != 0 && "vec must contain at least one element");
+        assert(pos + len - 1 < vec.size() && "number of elems to pull must be within vec's boundaries");
         auto ret = std::string();
         for(int i = pos; i < pos + len; ++i) {
             ret += vec[i];
@@ -61,9 +61,9 @@ class McwgBase
         }
         return ret;
     }
-};
+}; // namespace
 
-class AlphabetMap : McwgBase
+class AlphabetMap
 {
     std::map<char, uint32_t> _map;
 
@@ -71,10 +71,9 @@ class AlphabetMap : McwgBase
     uint32_t &operator[](const char key) {
         return _map[key];
     }
-    AlphabetMap () {
-        _map = std::map<char, uint32_t>();
-        for(const auto &c : McwgBase::k_alphabet) {
-            if(c != 0) {
+    AlphabetMap () : _map() {
+        for(const auto &c : k_alphabet) {
+            if(c != '\0') {
                 _map[c] = 1;
             }
         }
@@ -83,8 +82,8 @@ class AlphabetMap : McwgBase
     std::vector<int> get_vector () {
         auto ret = std::vector<int>();
         int acc = 0;
-        for(const auto n : _map) {
-            acc += n.second;
+        for(const auto &[key, val] : _map) {
+            acc += val;
             ret.push_back(acc);
         }
         return ret;
@@ -100,10 +99,11 @@ class AlphabetMap : McwgBase
 
     void deserialize (const std::vector<uint8_t> &vec, int pos, int len) {
         assert(vec.size() != 0 && "vec must contain at least one element");
+        assert(pos + len - 1 < vec.size() && "number of elems to deserialize must be within vec's boundaries");
         int letter_cnt = 0;
         for(int i = pos; i < pos + len; i += 4) {
             auto tmp = pull_int(vec, i);
-            _map[McwgBase::k_alphabet[letter_cnt]] = tmp;
+            _map[k_alphabet[letter_cnt]] = tmp;
             ++letter_cnt;
         }
     }
@@ -111,14 +111,14 @@ class AlphabetMap : McwgBase
     std::vector<uint8_t> serialize () {
         auto ret = std::vector<uint8_t>();
         push_int(ret, _map.size() * sizeof(int));
-        for(const auto n : _map) {
-            push_int(ret, n.second);
+        for(const auto &[key, val] : _map) {
+            push_int(ret, val);
         }
         return ret;
     }
 };
 
-class Model : McwgBase
+class Model
 {
     std::map<std::string, AlphabetMap> _chain;
     int _order;
@@ -129,8 +129,9 @@ class Model : McwgBase
     }
 
     void generate_model (const std::vector<std::string> &corpus) {
+        assert(corpus.size() != 0 && "corpus must contain elements");
         for(const auto &n : corpus) {
-            std::string tmp_str = gen_start_seq(_order) + n + McwgBase::k_end_mark;
+            std::string tmp_str = gen_start_seq(_order) + n + k_end_mark;
             for(int i = 0; i < static_cast<int>(tmp_str.length()) - _order; ++i) {
                 auto tmp = tmp_str.substr(i, _order);
                 if(_chain.find(tmp) == _chain.end()) {
@@ -148,7 +149,7 @@ class Model : McwgBase
             auto rnd = rand() % tmp.back();
             for(int i = 0; i < static_cast<int>(tmp.size()); ++i) {
                 if(rnd <= tmp[i]) {
-                    ret = McwgBase::k_alphabet[i];
+                    ret = k_alphabet[i];
                     break;
                 }
             }
@@ -191,14 +192,10 @@ class Model : McwgBase
     }
 };
 
-class Generator : McwgBase
+class Generator
 {
     std::vector<Model> _models;
     int _order;
-
-   public:
-    Generator (const int order, const std::vector<Model> &models) : _models(models), _order(order) {
-    }
 
     char generate_letter (const std::string &context) {
         char ret = 0;
@@ -212,6 +209,10 @@ class Generator : McwgBase
             }
         }
         return ret;
+    }
+
+   public:
+    Generator (const int order, const std::vector<Model> &models) : _models(models), _order(order) {
     }
 
     std::string generate_word () {
@@ -246,6 +247,8 @@ class Generator : McwgBase
 
 class Parser
 {
+    Parser () = delete;
+
    public:
     static std::optional<std::vector<std::string>> parse_file (const std::filesystem::path &path) {
         auto ret = std::optional<std::vector<std::string>>();
