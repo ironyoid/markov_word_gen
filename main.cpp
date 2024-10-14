@@ -1,6 +1,4 @@
 #include <optional>
-#include <vector>
-#include <filesystem>
 #include "mcwg.h"
 
 const std::filesystem::path k_animals_path = "../res/animals";

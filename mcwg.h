@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <format>
+#include <filesystem>
 
 namespace {
 
@@ -71,7 +72,7 @@ class AlphabetMap
     uint32_t &operator[](const char key) {
         return _map[key];
     }
-    AlphabetMap () : _map() {
+    AlphabetMap() : _map() {
         for(const auto &c : k_alphabet) {
             if(c != '\0') {
                 _map[c] = 1;
@@ -125,7 +126,7 @@ class Model
     int _gain;
 
    public:
-    Model (const int order, const int gain) : _chain(), _order(order), _gain(gain) {
+    Model(const int order, const int gain) : _chain(), _order(order), _gain(gain) {
     }
 
     void generate_model (const std::vector<std::string> &corpus) {
@@ -212,7 +213,7 @@ class Generator
     }
 
    public:
-    Generator (const int order, const std::vector<Model> &models) : _models(models), _order(order) {
+    Generator(const int order, const std::vector<Model> &models) : _models(models), _order(order) {
     }
 
     std::string generate_word () {
@@ -247,7 +248,7 @@ class Generator
 
 class Parser
 {
-    Parser () = delete;
+    Parser() = delete;
 
    public:
     static std::optional<std::vector<std::string>> parse_file (const std::filesystem::path &path) {
